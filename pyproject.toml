@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "HiveMind-signal-bridge"
+description = "Bridge a signal-cli JSON-RPC daemon to a HiveMind node"
+readme = "readme.md"
+authors = [{ name = "jarbasAI", email = "jarbasai@mailfence.com" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dynamic = ["version", "dependencies"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/JarbasHiveMind/hivemind-signal-bridge"
+
+[project.scripts]
+hivemind-signal-bridge = "hivemind_signal_bridge.__main__:main"
+
+[tool.setuptools]
+packages = ["hivemind_signal_bridge"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "hivemind_signal_bridge.version.__version__" }
+dependencies = { file = ["requirements.txt"] }
