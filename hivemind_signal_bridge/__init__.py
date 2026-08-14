@@ -44,6 +44,12 @@ from hivemind_signal_bridge.rpc import SignalRPCClient
 
 platform = "HiveMindSignalBridgeV0.1"
 
+# hivemind-bus-client >= 1.0.13a1 makes HiveMessageBusClient.connect()
+# block on the handshake; handshake_max_retries=None (the client's own
+# default) retries forever. Bound it here so a stalled/unreachable hub
+# (down, wrong password) fails fast instead of hanging the bridge.
+DEFAULT_HANDSHAKE_MAX_RETRIES = 10
+
 
 class HiveMindSignalBridge:
     """Bridge a signal-cli JSON-RPC daemon to a HiveMind node."""
@@ -61,6 +67,7 @@ class HiveMindSignalBridge:
                  lang: str = "en-us",
                  site_id: str = "signal",
                  allowed_senders: Optional[list] = None,
+                 handshake_max_retries: int = DEFAULT_HANDSHAKE_MAX_RETRIES,
                  *,
                  client: Optional[HiveMessageBusClient] = None,
                  signal_client: Optional[SignalRPCClient] = None):
@@ -79,6 +86,9 @@ class HiveMindSignalBridge:
         allowed_senders: if given, only messages from these Signal phone
             numbers are forwarded; leave unset to accept anyone who can
             message the account.
+        handshake_max_retries: bound on ``HiveMessageBusClient.connect()``'s
+            handshake retries, so a stalled/unreachable hub fails fast
+            instead of hanging the bridge forever.
         client: pre-built HiveMessageBusClient (tests / advanced setups).
         signal_client: pre-built SignalRPCClient (tests).
         """
@@ -90,6 +100,7 @@ class HiveMindSignalBridge:
         self.lang = lang
         self.site_id = site_id
         self.allowed_senders = set(allowed_senders) if allowed_senders else None
+        self.handshake_max_retries = handshake_max_retries
 
         self.signal = signal_client or SignalRPCClient(
             socket_path=signal_socket, host=signal_host, port=signal_port,
@@ -123,7 +134,8 @@ class HiveMindSignalBridge:
         already starts and owns the reconnect worker thread. Never call
         ``run_forever()`` in addition to this.
         """
-        self.client.connect(site_id=self.site_id)
+        self.client.connect(site_id=self.site_id,
+                            handshake_max_retries=self.handshake_max_retries)
         self.client.on_mycroft("speak", self.handle_speak)
         self.client.on_mycroft("hive.complete_intent_failure",
                                self.handle_intent_failure)

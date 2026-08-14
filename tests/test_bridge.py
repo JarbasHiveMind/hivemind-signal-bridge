@@ -56,11 +56,33 @@ def test_connect_hivemind_calls_connect_once_and_registers_handlers():
     bridge, fake_client, fake_signal = _make_bridge()
     bridge.connect_hivemind()
 
-    fake_client.connect.assert_called_once_with(site_id="signal")
+    fake_client.connect.assert_called_once_with(
+        site_id="signal", handshake_max_retries=10)
     fake_client.run_forever.assert_not_called()
     assert bridge._connected.is_set()
     registered = {call.args[0] for call in fake_client.on_mycroft.call_args_list}
     assert registered == {"speak", "hive.complete_intent_failure"}
+
+
+def test_connect_hivemind_bounds_handshake_retries():
+    """connect() must never be called with an unbounded (None) handshake
+    retry count -- that hangs the bridge forever against a stalled hub."""
+    from hivemind_signal_bridge import DEFAULT_HANDSHAKE_MAX_RETRIES
+
+    bridge, fake_client, fake_signal = _make_bridge()
+    bridge.connect_hivemind()
+
+    _, kwargs = fake_client.connect.call_args
+    assert kwargs.get("handshake_max_retries") is not None
+    assert kwargs["handshake_max_retries"] == DEFAULT_HANDSHAKE_MAX_RETRIES == 10
+
+
+def test_connect_hivemind_respects_custom_handshake_max_retries():
+    bridge, fake_client, fake_signal = _make_bridge(handshake_max_retries=3)
+    bridge.connect_hivemind()
+
+    fake_client.connect.assert_called_once_with(
+        site_id="signal", handshake_max_retries=3)
 
 
 def test_inbound_message_forwarded_to_hivemind_after_connect():
